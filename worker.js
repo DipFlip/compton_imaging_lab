@@ -39,8 +39,8 @@ self.onmessage=({data:p})=>{
     pred.fill(0);
     for(let j=0;j<f.length;j++)for(const i of active)pred[i]+=cols[j][i]*f[j];
     for(let j=0;j<f.length;j++){
-      let z=0;for(const i of active)z+=cols[j][i]*counts[i]/Math.max(1e-30,pred[i]);
-      f[j]*=z/Math.max(1e-30,sensitivity[j]);
+      let z=0;for(const i of active)z+=cols[j][i]*counts[i]/Math.max(1e-300,pred[i]);
+      f[j]*=z/Math.max(1e-300,sensitivity[j]);
     }
     const sum=f.reduce((a,b)=>a+b,0);
     if(sum)for(let j=0;j<f.length;j++)f[j]/=sum;
@@ -52,7 +52,7 @@ self.onmessage=({data:p})=>{
         for(const i of active)pred[i]+=cols[j][i]*f[j];
       }
       let logLikelihood=-n;
-      for(const i of active)logLikelihood+=counts[i]*Math.log(Math.max(1e-300,pred[i]*n/Math.max(1e-30,detected)));
+      for(const i of active)logLikelihood+=counts[i]*Math.log(Math.max(1e-300,pred[i]*n/Math.max(1e-300,detected)));
       self.postMessage({paths,f,sensitivity,eff,modelEff,n,it,expectedEvents:p.mode==='fixed'?p.events:eff*p.emitted,activityBq:acquisition?.activityBq,unsupported,logLikelihood,diagnostics,emitted:p.mode==='fixed'?(eff?n/eff:0):p.emitted});
     }
   }

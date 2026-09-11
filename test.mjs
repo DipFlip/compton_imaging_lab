@@ -69,3 +69,16 @@ assert.equal(frames.at(-1).n,500);
 assert.ok(frames.at(-1).f.every(Number.isFinite));
 assert.equal(frames.at(-1).paths.length,32);
 console.log('Rotated ray lengths, overlap rejection, route normalization and adjustable threshold passed.');
+for(const energyKeV of [50,100,662,3000]){
+ const E=energyKeV/1000;
+ let integral=0;for(let i=0;i<10000;i++)integral+=kn(-1+(i+.5)*2/10000,E)*4*Math.PI/10000;
+ assert.ok(Math.abs(integral-1)<1e-5);
+ const settings={...p,energyKeV,thresholdKeV:0,generator:'volume',iterations:2};
+ const v=simulateVolume(settings);assert.ok(v.eff>0&&Number.isFinite(v.eff));
+ assert.ok(Math.abs(v.routes.reduce((a,r)=>a+r.weight,0)-v.eff)<1e-14);
+ frames=[];self.onmessage({data:settings});assert.equal(frames.at(-1).n,500);assert.ok(frames.at(-1).f.every(Number.isFinite));
+ assert.ok(frames.at(-1).logLikelihood>=frames[0].logLikelihood-1e-8);
+}
+assert.equal(simulateVolume({...p,energyKeV:50,thresholdKeV:30}).eff,0);
+assert.equal(column(s,d,{...p,energyKeV:50,thresholdKeV:30}).reduce((a,b)=>a+b,0),0);
+console.log('50–3000 keV normalization, finite reconstruction, route sums and impossible threshold passed.');

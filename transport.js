@@ -25,22 +25,22 @@ export const materialPath=(start,end,det)=>det.reduce((sum,c)=>sum+boxPath(start
 
 // Uniform-volume importance sampling. All path attenuation uses the actual
 // sampled interaction coordinates, including occlusion by the other crystals.
-export function volumeWeight(s,a,b,det){
+export function volumeWeight(s,a,b,det,E=1){
   const incoming=sub(a,s),outgoing=sub(b,a);
   const r=norm(incoming),d=norm(outgoing);
   const cosine=clamp(dot(incoming,outgoing)/(r*d));
-  const photonEnergy=1/(1+(1-cosine)/.511);
+  const photonEnergy=E/(1+E*(1-cosine)/.511);
   const muPhoto=rho*Math.max(0,total(photonEnergy)-compton(photonEnergy));
-  const attenuation=Math.exp(-rho*(total(1)*materialPath(s,a,det)+total(photonEnergy)*materialPath(a,b,det)));
-  const weight=volume*volume*rho*compton(1)*kn(cosine)*muPhoto*attenuation/(4*Math.PI*r*r*d*d);
-  return {weight,scatterEnergy:1-photonEnergy,theta:Math.acos(cosine)};
+  const attenuation=Math.exp(-rho*(total(E)*materialPath(s,a,det)+total(photonEnergy)*materialPath(a,b,det)));
+  const weight=volume*volume*rho*compton(E)*kn(cosine,E)*muPhoto*attenuation/(4*Math.PI*r*r*d*d);
+  return {weight,scatterEnergy:E-photonEnergy,theta:Math.acos(cosine)};
 }
 
 export function simulateVolume(p,{samples=1024,integrationSeed=73193}={}){
   const det=geometry(p),s=source(p.az,p.el,p.radius),random=rng(integrationSeed),noise=rng(integrationSeed^0x57ab);
   const overlap=overlappingCrystals(det);if(overlap)throw new Error(`Crystals ${overlap.join(" and ")} overlap. Increase separation or reduce rotation/gaps.`);
   const spectrum=new Float64Array(M),routes=[];
-  const threshold=(p.thresholdKeV??20)/1000;
+  const threshold=(p.thresholdKeV??20)/1000,E=(p.energyKeV??1000)/1000;
   let variance=0,armWeight=0,armSum=0,armSquare=0,positionSquare=0,measuredAccepted=0;
   let forwardWeight=0,reverseWeight=0;
   for(let i=0;i<4;i++)for(let j=4;j<8;j++)for(let order=0;order<2;order++){
@@ -50,19 +50,19 @@ export function simulateVolume(p,{samples=1024,integrationSeed=73193}={}){
     for(let n=0;n<samples;n++){
       const da=rotateY(dims.map(size=>(random()-.5)*size),ac.yaw),db=rotateY(dims.map(size=>(random()-.5)*size),bc.yaw);
       const a=ac.map((x,k)=>x+da[k]),b=bc.map((x,k)=>x+db[k]);
-      const event=volumeWeight(s,a,b,det);
-      const mean=order?1-event.scatterEnergy:event.scatterEnergy,sigma=energySigma(mean,p.res);
-      addSpectrum(spectrum,base,mean,sigma,event.weight/samples,p.thresholdKeV??20);
-      const acceptance=sigma>0?normalCDF((1-threshold-mean)/sigma)-normalCDF((threshold-mean)/sigma):Number(mean>=threshold&&mean<1-threshold);
+      const event=volumeWeight(s,a,b,det,E);
+      const mean=order?E-event.scatterEnergy:event.scatterEnergy,sigma=energySigma(mean,p.res,E);
+      addSpectrum(spectrum,base,mean,sigma,event.weight/samples,p.thresholdKeV??20,E);
+      const acceptance=E<=2*threshold?0:sigma>0?normalCDF((E-threshold-mean)/sigma)-normalCDF((threshold-mean)/sigma):Number(mean>=threshold&&mean<E-threshold);
       const acceptedWeight=event.weight*acceptance;
       sum+=acceptedWeight;square+=acceptedWeight*acceptedWeight;
       if(order)reverseWeight+=acceptedWeight/samples;else forwardWeight+=acceptedWeight/samples;
       // Truth order is used ONLY for ARM diagnostics, never by reconstruction.
       const measured=mean+sigma*Math.sqrt(-2*Math.log(Math.max(1e-12,noise())))*Math.cos(2*Math.PI*noise());
-      if(measured<threshold||measured>=1-threshold)continue;
+      if(measured<threshold||measured>=E-threshold)continue;
       measuredAccepted+=event.weight;
-      const scattered=order?measured:1-measured;
-      const cosine=1-.511*(1/scattered-1);
+      const scattered=order?measured:E-measured;
+      const cosine=1-.511*(1/scattered-1/E);
       if(cosine < -1 || cosine > 1)continue;
       const arm=(Math.acos(cosine)-centerTheta)*degrees;
       const positionArm=(event.theta-centerTheta)*degrees;
