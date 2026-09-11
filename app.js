@@ -116,3 +116,16 @@ $('exportSweep').onclick=()=>{
   const csv=[keys.join(','),...rows.map(r=>keys.map(k=>r[k]??'').join(','))].join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='compton-spacing-sweep.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 };
+
+// Keep panel headings available while hiding their controls and visualization.
+for (const title of [document.querySelector('.workspace .panel h2'), $('mapTitle')]) {
+  const panel=title.closest('.panel'),button=document.createElement('button');
+  button.type='button';button.className='panel-toggle';button.textContent=title.textContent;
+  if(title.id){button.id=title.id;title.removeAttribute('id');}
+  button.setAttribute('aria-expanded','true');title.replaceChildren(button);
+  button.onclick=()=>{
+    const collapsed=panel.classList.toggle('panel-collapsed');
+    button.setAttribute('aria-expanded',String(!collapsed));
+    if(!collapsed)requestAnimationFrame(()=>{drawScene();drawMap();roomView?.requestRender();});
+  };
+}
