@@ -1,0 +1,13 @@
+{
+  "name": "labr3-compton-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8765 --bind 127.0.0.1",
+    "test": "node test.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.0"
+  }
+}
